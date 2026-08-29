@@ -28,6 +28,11 @@ function formatTimestamp(date = new Date()) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
 }
 
+function baseName(path) {
+  if (!path) return ''
+  return String(path).replace(/^.*[/\\]/, '')
+}
+
 export const useReportStore = defineStore('report', () => {
   const events = ref([])
   const specs = ref({})
@@ -53,18 +58,27 @@ export const useReportStore = defineStore('report', () => {
     specList.value.map((spec) => ({
       id: `spec-${spec.id}`,
       name: spec.name,
+      fileName: spec.fileName,
+      fileLabel: baseName(spec.fileName),
+      kind: '规格',
       type: 'spec',
+      level: 0,
       status: spec.status || 'progress',
       children: (spec.scenarios || []).map((scenario) => ({
         id: `scn-${scenario.id}`,
         name: scenario.name,
+        kind: '场景',
         type: 'scenario',
+        level: 1,
         status: scenario.status || 'progress',
         children: (scenario.steps || []).map((step) => {
+          const isConcept = Boolean(step.concept)
           const node = {
             id: `step-${step.id}`,
             name: step.name,
-            type: 'step',
+            kind: isConcept ? '概念' : '步骤',
+            type: isConcept ? 'concept' : 'step',
+            level: 2,
             status: step.status || 'progress',
             errorMessage: step.errorMessage,
             stackTrace: step.stackTrace
@@ -74,7 +88,9 @@ export const useReportStore = defineStore('report', () => {
               {
                 id: `err-${step.id}`,
                 name: step.errorMessage || 'Step failed',
+                kind: '',
                 type: 'error',
+                level: 3,
                 status: 'fail',
                 stackTrace: step.stackTrace
               }

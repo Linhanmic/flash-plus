@@ -7,15 +7,28 @@
       :show-header="false"
       :expand-row-keys="store.expandedKeys"
       :tree-props="{ children: 'children' }"
-      :indent="24"
+      :indent="0"
       :row-class-name="rowClassName"
       empty-text="Waiting for specification events…"
       @expand-change="store.onExpandChange"
     >
       <el-table-column class-name="name-cell" min-width="320">
         <template #default="{ row }">
+          <button
+            v-if="hasChildren(row)"
+            type="button"
+            class="toggle"
+            :class="{ expanded: isExpanded(row) }"
+            :aria-label="isExpanded(row) ? 'collapse' : 'expand'"
+            @click.stop="toggle(row)"
+          />
+          <span v-else class="toggle-spacer" />
           <div class="cell-content" :class="`type-${row.type}`">
-            <span class="row-name">{{ row.name }}</span>
+            <div class="row-main">
+              <span v-if="row.kind" class="kind">{{ row.kind }}</span>
+              <span class="row-name">{{ row.name }}</span>
+              <span v-if="row.fileLabel" class="file-name" :title="row.fileName">{{ row.fileLabel }}</span>
+            </div>
             <pre v-if="row.type === 'error' && row.stackTrace" class="stack">{{ row.stackTrace }}</pre>
           </div>
         </template>
@@ -30,8 +43,20 @@ import { useReportStore } from '../stores/report'
 
 const store = useReportStore()
 
+function hasChildren(row) {
+  return Array.isArray(row.children) && row.children.length > 0
+}
+
+function isExpanded(row) {
+  return store.expandedKeys.includes(String(row.id))
+}
+
+function toggle(row) {
+  store.onExpandChange(row, !isExpanded(row))
+}
+
 function rowClassName({ row }) {
-  return [`is-${row.status || 'progress'}`, `is-${row.type}`]
+  return [`is-${row.status || 'progress'}`, `is-${row.type}`, `is-level-${row.level ?? 0}`]
 }
 </script>
 
@@ -44,13 +69,13 @@ function rowClassName({ row }) {
 .flash-table :deep(.el-table) {
   --el-table-border-color: #e6e6e6;
   --el-table-bg-color: transparent;
-  --el-table-tr-bg-color: #ffffff;
-  --el-table-row-hover-bg-color: #f7fbfa;
+  --el-table-tr-bg-color: transparent;
+  --el-table-row-hover-bg-color: transparent;
   --el-table-header-bg-color: transparent;
   background: transparent;
   font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
   font-size: 14px;
-  color: #4a4a4a;
+  color: #3d3d3d;
 }
 
 .flash-table :deep(.el-table::before),
@@ -64,53 +89,76 @@ function rowClassName({ row }) {
 
 .flash-table :deep(.el-table__body) {
   border-collapse: separate;
-  border-spacing: 0 8px;
+  border-spacing: 0 6px;
 }
 
 .flash-table :deep(.el-table td.el-table__cell) {
+  border: none !important;
+  background: transparent !important;
+  padding: 0;
+}
+
+.flash-table :deep(.el-table__body tr:hover > td.el-table__cell) {
+  background: transparent !important;
+}
+
+.flash-table :deep(.el-table .cell) {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 14px 8px 12px;
+  line-height: 20px;
+  overflow: visible;
+  background: #fff;
   border: 1px solid #e5e5e5;
   border-left: 4px solid #1abc9c;
-  background: #fff;
-  padding: 10px 14px;
 }
 
-.flash-table :deep(.el-table__row.is-fail td.el-table__cell) {
-  border-left-color: #e74c3c;
+.flash-table :deep(.el-table__row.is-level-0 td.el-table__cell) {
+  padding-left: 0;
 }
 
-.flash-table :deep(.el-table__row.is-progress td.el-table__cell) {
-  border-left-color: #95a5a6;
+.flash-table :deep(.el-table__row.is-level-1 td.el-table__cell) {
+  padding-left: 36px;
 }
 
-.flash-table :deep(.el-table__row.is-skip td.el-table__cell) {
-  border-left-color: #bdc3c7;
+.flash-table :deep(.el-table__row.is-level-2 td.el-table__cell) {
+  padding-left: 72px;
 }
 
-.flash-table :deep(.el-table__row.is-error td.el-table__cell) {
-  border-left-color: #e74c3c;
-  background: #fff8f8;
+.flash-table :deep(.el-table__row.is-level-3 td.el-table__cell) {
+  padding-left: 72px;
 }
 
+.flash-table :deep(.el-table__indent),
+.flash-table :deep(.el-table__placeholder),
 .flash-table :deep(.el-table__expand-icon) {
+  display: none !important;
+}
+
+.toggle,
+.toggle-spacer {
   width: 16px;
   height: 16px;
-  margin-right: 10px;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.toggle {
+  border: 0;
+  padding: 0;
   border-radius: 3px;
   background: #3a3a3a;
-  color: #fff;
+  cursor: pointer;
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transform: none !important;
-  position: relative;
-  vertical-align: middle;
 }
 
-.flash-table :deep(.el-table__expand-icon .el-icon) {
-  display: none;
-}
-
-.flash-table :deep(.el-table__expand-icon::before) {
+.toggle::before {
   content: '';
   width: 8px;
   height: 2px;
@@ -118,7 +166,7 @@ function rowClassName({ row }) {
   border-radius: 1px;
 }
 
-.flash-table :deep(.el-table__expand-icon:not(.el-table__expand-icon--expanded)::after) {
+.toggle:not(.expanded)::after {
   content: '';
   position: absolute;
   width: 2px;
@@ -127,30 +175,101 @@ function rowClassName({ row }) {
   border-radius: 1px;
 }
 
-.flash-table :deep(.el-table__placeholder) {
-  width: 16px;
-  height: 16px;
-  margin-right: 10px;
+.flash-table :deep(.el-table__row.is-fail .cell) {
+  border-left-color: #e74c3c;
+}
+
+.flash-table :deep(.el-table__row.is-progress .cell) {
+  border-left-color: #95a5a6;
+}
+
+.flash-table :deep(.el-table__row.is-skip .cell) {
+  border-left-color: #bdc3c7;
+}
+
+.flash-table :deep(.el-table__row.is-error .cell) {
+  border-left-color: #e74c3c;
+  background: #fff8f8;
+}
+
+.flash-table :deep(.el-table__row:hover .cell) {
+  background: #f7fbfa;
+}
+
+.flash-table :deep(.el-table__row.is-error:hover .cell) {
+  background: #fff1f1;
 }
 
 .cell-content {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  min-height: 20px;
+  flex: 1;
+  min-width: 0;
+}
+
+.row-main {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.kind {
+  flex-shrink: 0;
+  font-size: 11px;
+  line-height: 18px;
+  padding: 0 6px;
+  border-radius: 3px;
+  background: #f2f2f2;
+  color: #888;
+}
+
+.type-spec .kind {
+  background: #e8f8f5;
+  color: #148f77;
+}
+
+.type-scenario .kind {
+  background: #eef3f7;
+  color: #5d6d7e;
+}
+
+.type-step .kind,
+.type-concept .kind {
+  background: #f4f4f4;
+  color: #7f8c8d;
 }
 
 .row-name {
   line-height: 20px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .type-spec .row-name {
   font-weight: 600;
+  font-size: 14px;
+}
+
+.type-scenario .row-name {
+  font-weight: 500;
 }
 
 .type-error .row-name {
   color: #c0392b;
   font-size: 13px;
+  white-space: pre-wrap;
+}
+
+.file-name {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: #9a9a9a;
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 .stack {
