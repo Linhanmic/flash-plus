@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Linhanmic/flash-plus/event"
+	m "github.com/getgauge/flash/gauge_messages"
 )
 
 func send(e chan event.Event, ev event.Event, d time.Duration) {
@@ -48,9 +49,42 @@ func stepEnd(specFile, scenario, name string, status event.Status, errMsg, stack
 	return event.Event{Type: event.Step, Status: status, Name: name, SpecFileName: specFile, ScenarioName: scenario, ErrorMessage: errMsg, StackTrace: stack}
 }
 
+func dynamicLabel(value string) []*m.Parameter {
+	return []*m.Parameter{{Name: "label", Value: value, ParameterType: m.Parameter_Dynamic}}
+}
+
+func execInfo(specFile, scenario, actual string, params []*m.Parameter, failed bool, errMsg, stack string) *m.ExecutionInfo {
+	return &m.ExecutionInfo{
+		CurrentSpec:     &m.SpecInfo{FileName: specFile},
+		CurrentScenario: &m.ScenarioInfo{Name: scenario},
+		CurrentStep: &m.StepInfo{
+			Step:         &m.ExecuteStepRequest{ActualStepText: actual, Parameters: params},
+			IsFailed:     failed,
+			ErrorMessage: errMsg,
+			StackTrace:   stack,
+		},
+	}
+}
+
 // RunDemo publishes a realistic execution timeline for local UI debugging.
 func RunDemo(e chan event.Event) {
 	send(e, event.Event{Type: event.Suite, Status: event.Progress, Name: "flash-plus-demo", ProjectName: "flash-plus-demo"}, 200*time.Millisecond)
+
+	envSpec := "specs/env.spec"
+	envHeading := "Demo environment"
+	envScenario := "Check environment label"
+	envConcept := "aaa <label>"
+	envStep := "Verify demo environment label is <label>"
+	send(e, specStart(envSpec, envHeading), 200*time.Millisecond)
+	send(e, scenarioStart(envSpec, envScenario), 180*time.Millisecond)
+	send(e, event.NewConceptEvent(execInfo(envSpec, envScenario, envConcept, dynamicLabel("staging"), false, "", ""), true), 180*time.Millisecond)
+	send(e, event.NewStepEvent(execInfo(envSpec, envScenario, envStep, dynamicLabel("staging"), false, "", ""), true), 180*time.Millisecond)
+	send(e, event.NewStepEvent(execInfo(envSpec, envScenario, envStep, dynamicLabel("staging"), false, "", ""), false), 180*time.Millisecond)
+	send(e, event.NewStepEvent(execInfo(envSpec, envScenario, envStep, dynamicLabel("staging"), false, "", ""), true), 180*time.Millisecond)
+	send(e, event.NewStepEvent(execInfo(envSpec, envScenario, envStep, dynamicLabel("staging"), false, "", ""), false), 180*time.Millisecond)
+	send(e, event.NewConceptEvent(execInfo(envSpec, envScenario, envConcept, dynamicLabel("staging"), false, "", ""), false), 180*time.Millisecond)
+	send(e, scenarioEnd(envSpec, envScenario, event.Pass), 180*time.Millisecond)
+	send(e, specEnd(envSpec, envHeading, event.Pass), 200*time.Millisecond)
 
 	loginSpec := "specs/login.spec"
 	loginHeading := "User login"

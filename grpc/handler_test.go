@@ -67,6 +67,34 @@ func TestHandlerEmitsLifecycleEvents(t *testing.T) {
 	}
 }
 
+func TestHandlerEmitsConceptWithResolvedParams(t *testing.T) {
+	ch := make(chan event.Event, 4)
+	h := NewHandler(nil, ch)
+	ctx := context.Background()
+	info := &gm.ExecutionInfo{
+		CurrentSpec:     &gm.SpecInfo{FileName: "specs/env.spec"},
+		CurrentScenario: &gm.ScenarioInfo{Name: "check"},
+		CurrentStep: &gm.StepInfo{
+			Step: &gm.ExecuteStepRequest{
+				ActualStepText: "aaa <label>",
+				Parameters: []*gm.Parameter{
+					{Name: "label", Value: "staging", ParameterType: gm.Parameter_Dynamic},
+				},
+			},
+		},
+	}
+	if _, err := h.NotifyConceptExecutionStarting(ctx, &gm.StepExecutionStartingRequest{CurrentExecutionInfo: info}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.NotifyConceptExecutionEnding(ctx, &gm.StepExecutionEndingRequest{CurrentExecutionInfo: info}); err != nil {
+		t.Fatal(err)
+	}
+	got := drain(ch, 2)
+	if len(got) != 2 || got[0].Type != event.Concept || got[0].Name != `aaa "staging"` || got[1].Status != event.Pass {
+		t.Fatalf("%+v", got)
+	}
+}
+
 func TestHandlerNilRequests(t *testing.T) {
 	ch := make(chan event.Event, 8)
 	h := NewHandler(nil, ch)

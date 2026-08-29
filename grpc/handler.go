@@ -54,6 +54,20 @@ func (h *handler) NotifyScenarioExecutionStarting(c context.Context, m *gm.Scena
 	return &gm.Empty{}, nil
 }
 
+func (h *handler) NotifyConceptExecutionStarting(c context.Context, m *gm.StepExecutionStartingRequest) (*gm.Empty, error) {
+	if m != nil {
+		h.emit(event.NewConceptEvent(m.CurrentExecutionInfo, true))
+	}
+	return &gm.Empty{}, nil
+}
+
+func (h *handler) NotifyConceptExecutionEnding(c context.Context, m *gm.StepExecutionEndingRequest) (*gm.Empty, error) {
+	if m != nil {
+		h.emit(event.NewConceptEvent(m.CurrentExecutionInfo, false))
+	}
+	return &gm.Empty{}, nil
+}
+
 func (h *handler) NotifyStepExecutionStarting(c context.Context, m *gm.StepExecutionStartingRequest) (*gm.Empty, error) {
 	if m != nil {
 		h.emit(event.NewStepEvent(m.CurrentExecutionInfo, true))

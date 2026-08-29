@@ -90,6 +90,76 @@ func TestNewConceptEvent(t *testing.T) {
 	}
 }
 
+func TestResolveStepTextReplacesDynamicParams(t *testing.T) {
+	params := []Param{{Name: "label", Value: "staging"}}
+	got := ResolveStepText("aaa <label>", "", params)
+	if got != `aaa "staging"` {
+		t.Fatalf("concept: %q", got)
+	}
+	got = ResolveStepText("Verify demo environment label is <label>", "", params)
+	if got != `Verify demo environment label is "staging"` {
+		t.Fatalf("step: %q", got)
+	}
+	got = ResolveStepText("aaa<label>", "", params)
+	if got != `aaa"staging"` {
+		t.Fatalf("no space: %q", got)
+	}
+}
+
+func TestResolveStepTextSequentialPlaceholders(t *testing.T) {
+	params := []Param{{Name: "user", Value: "alice"}, {Name: "pass", Value: "secret"}}
+	got := ResolveStepText("Enter <user> and <pass>", "", params)
+	if got != `Enter "alice" and "secret"` {
+		t.Fatalf("got %q", got)
+	}
+	got = ResolveStepText("", "Enter {} and {}", []Param{{Value: "alice"}, {Value: "secret"}})
+	if got != `Enter "alice" and "secret"` {
+		t.Fatalf("parsed: %q", got)
+	}
+}
+
+func TestNewStepEventResolvesParameters(t *testing.T) {
+	info := &m.ExecutionInfo{
+		CurrentSpec:     &m.SpecInfo{FileName: "specs/env.spec"},
+		CurrentScenario: &m.ScenarioInfo{Name: "check"},
+		CurrentStep: &m.StepInfo{
+			Step: &m.ExecuteStepRequest{
+				ActualStepText: "Verify demo environment label is <label>",
+				ParsedStepText: "Verify demo environment label is {}",
+				Parameters: []*m.Parameter{
+					{Name: "label", Value: "staging", ParameterType: m.Parameter_Dynamic},
+				},
+			},
+		},
+	}
+	ev := NewStepEvent(info, true)
+	if ev.Name != `Verify demo environment label is "staging"` {
+		t.Fatalf("name=%q", ev.Name)
+	}
+	if len(ev.Parameters) != 1 || ev.Parameters[0].Name != "label" || ev.Parameters[0].Value != "staging" {
+		t.Fatalf("params=%+v", ev.Parameters)
+	}
+}
+
+func TestNewConceptEventResolvesParameters(t *testing.T) {
+	info := &m.ExecutionInfo{
+		CurrentSpec:     &m.SpecInfo{FileName: "specs/env.spec"},
+		CurrentScenario: &m.ScenarioInfo{Name: "check"},
+		CurrentStep: &m.StepInfo{
+			Step: &m.ExecuteStepRequest{
+				ActualStepText: "aaa <label>",
+				Parameters: []*m.Parameter{
+					{Name: "label", Value: "staging", ParameterType: m.Parameter_Dynamic},
+				},
+			},
+		},
+	}
+	ev := NewConceptEvent(info, true)
+	if ev.Name != `aaa "staging"` || ev.ConceptName != ev.Name {
+		t.Fatalf("%+v", ev)
+	}
+}
+
 func TestNewEndEventFromSuite(t *testing.T) {
 	ev := NewEndEventFromSuite(nil)
 	if ev.Type != End || ev.Status != Pass {

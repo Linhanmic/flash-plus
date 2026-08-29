@@ -11,7 +11,6 @@ import (
 	"net"
 
 	"github.com/Linhanmic/flash-plus/event"
-	gm "github.com/getgauge/flash/gauge_messages"
 	"google.golang.org/grpc"
 )
 
@@ -29,7 +28,7 @@ func Start(ctx context.Context, e chan event.Event, cancel context.CancelFunc) e
 	server := grpc.NewServer(grpc.MaxRecvMsgSize(1024 * 1024 * 1024))
 	h := NewHandler(server, e)
 	h.SetCancel(cancel)
-	gm.RegisterReporterServer(server, h)
+	registerReporter(server, h)
 
 	go func() {
 		<-ctx.Done()

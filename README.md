@@ -79,9 +79,9 @@ go run build.go --install       # 安装到 ~/.gauge/plugins
 |------|------|----------|
 | 规格书 | 规格书 | 规格文件名（如 `login.spec`），标题作为副标题 |
 | 场景 | 场景 | 场景标题 |
-| 步骤 / 概念 | 步骤、概念 | 步骤文本；概念可嵌套内部步骤 |
+| 步骤 / 概念 | 步骤、概念 | 步骤文本；概念可嵌套内部步骤；动态参数 `<name>` 替换为实际值 |
 
-WebSocket 事件类型为 `suite` / `spec` / `scenario` / `concept` / `step` / `end`。当前 `github.com/getgauge/flash` 的 Reporter proto 尚未包含 `NotifyConceptExecution*`，因此 Gauge 运行时若未发送概念 RPC，概念节点仍可通过 `type: "concept"` 事件（如 `--demo`）展示。
+WebSocket 事件类型为 `suite` / `spec` / `scenario` / `concept` / `step` / `end`。步骤与概念名称会把 Gauge 动态参数 `<name>` 替换为运行时的实际值。gRPC 同时实现 `NotifyConceptExecutionStarting` / `NotifyConceptExecutionEnding`，兼容 Gauge 1.5.7+ 的 Reporter 调用。
 
 本仓库作为 [uHIL](https://github.com/Linhanmic/uHIL) 子模块维护。Protobuf 消息来自 `github.com/getgauge/flash`。
 

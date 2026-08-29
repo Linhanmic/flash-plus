@@ -26,7 +26,12 @@
           <div class="cell-content" :class="`type-${row.type}`">
             <div class="row-main">
               <span v-if="row.kind" class="kind">{{ row.kind }}</span>
-              <span class="row-name" :title="row.fileName || row.name">{{ row.name }}</span>
+              <span class="row-name" :title="row.fileName || row.name">
+                <template v-for="(part, index) in nameParts(row)" :key="index">
+                  <span v-if="part.param" class="param">{{ part.text }}</span>
+                  <template v-else>{{ part.text }}</template>
+                </template>
+              </span>
               <span v-if="row.heading" class="row-heading">{{ row.heading }}</span>
             </div>
             <pre v-if="row.type === 'error' && row.stackTrace" class="stack">{{ row.stackTrace }}</pre>
@@ -53,6 +58,28 @@ function isExpanded(row) {
 
 function toggle(row) {
   store.onExpandChange(row, !isExpanded(row))
+}
+
+function nameParts(row) {
+  const name = row?.name || ''
+  if (row?.type !== 'step' && row?.type !== 'concept') {
+    return [{ text: name, param: false }]
+  }
+  const parts = []
+  const re = /"([^"]*)"/g
+  let last = 0
+  let match
+  while ((match = re.exec(name))) {
+    if (match.index > last) {
+      parts.push({ text: name.slice(last, match.index), param: false })
+    }
+    parts.push({ text: match[0], param: true })
+    last = match.index + match[0].length
+  }
+  if (last < name.length) {
+    parts.push({ text: name.slice(last), param: false })
+  }
+  return parts.length ? parts : [{ text: name, param: false }]
 }
 
 function rowClassName({ row }) {
@@ -269,6 +296,11 @@ function rowClassName({ row }) {
 
 .type-concept .row-name {
   font-weight: 500;
+}
+
+.param {
+  color: #1a7f64;
+  font-weight: 600;
 }
 
 .row-heading {

@@ -47,6 +47,7 @@ type Event struct {
 	ExecutionTime    int64     `json:"executionTime,omitempty"`
 	SuccessRate      float32   `json:"successRate,omitempty"`
 	Environment      string    `json:"environment,omitempty"`
+	Parameters       []Param   `json:"parameters,omitempty"`
 }
 
 func ProjectNameFromEnv() string {
@@ -131,12 +132,7 @@ func NewStepEvent(i *m.ExecutionInfo, hasStarted bool) Event {
 		}
 	}
 	step := i.GetCurrentStep()
-	name := "(unknown step)"
-	if req := step.GetStep(); req != nil {
-		if req.GetActualStepText() != "" {
-			name = req.GetActualStepText()
-		}
-	}
+	name, params := stepDisplayName(step.GetStep(), "(unknown step)")
 	specFile := ""
 	if spec := i.GetCurrentSpec(); spec != nil {
 		specFile = spec.GetFileName()
@@ -151,6 +147,7 @@ func NewStepEvent(i *m.ExecutionInfo, hasStarted bool) Event {
 		Name:         name,
 		ScenarioName: scenarioName,
 		SpecFileName: specFile,
+		Parameters:   params,
 	}
 	if !hasStarted && step.GetIsFailed() {
 		ev.ErrorMessage = step.GetErrorMessage()
@@ -161,6 +158,7 @@ func NewStepEvent(i *m.ExecutionInfo, hasStarted bool) Event {
 
 func NewConceptEvent(i *m.ExecutionInfo, hasStarted bool) Event {
 	name := "(unknown concept)"
+	var params []Param
 	failed := false
 	specFile := ""
 	scenarioName := ""
@@ -173,9 +171,7 @@ func NewConceptEvent(i *m.ExecutionInfo, hasStarted bool) Event {
 		}
 		if step := i.GetCurrentStep(); step != nil {
 			failed = step.GetIsFailed()
-			if req := step.GetStep(); req != nil && req.GetActualStepText() != "" {
-				name = req.GetActualStepText()
-			}
+			name, params = stepDisplayName(step.GetStep(), "(unknown concept)")
 		}
 	}
 	ev := Event{
@@ -185,6 +181,7 @@ func NewConceptEvent(i *m.ExecutionInfo, hasStarted bool) Event {
 		ConceptName:  name,
 		SpecFileName: specFile,
 		ScenarioName: scenarioName,
+		Parameters:   params,
 	}
 	if !hasStarted && failed && i != nil && i.GetCurrentStep() != nil {
 		ev.ErrorMessage = i.GetCurrentStep().GetErrorMessage()

@@ -4,6 +4,43 @@ import { computed, ref, watch } from 'vue'
 let nextId = 1
 const uid = () => nextId++
 
+function resolveStepName(name, parameters) {
+  if (!name) return name
+  const params = Array.isArray(parameters) ? parameters : []
+  if (!params.length) return name
+  let text = String(name)
+  const used = new Set()
+  for (let i = 0; i < params.length; i++) {
+    const param = params[i]
+    if (!param?.name) continue
+    const placeholder = `<${param.name}>`
+    if (!text.includes(placeholder)) continue
+    text = text.replace(placeholder, quoteParam(param.value))
+    used.add(i)
+  }
+  for (let i = 0; i < params.length; i++) {
+    if (used.has(i)) continue
+    const value = quoteParam(params[i]?.value)
+    if (text.includes('{}')) {
+      text = text.replace('{}', value)
+      used.add(i)
+      continue
+    }
+    const match = text.match(/<[^<>]+>/)
+    if (!match) break
+    text = text.replace(match[0], value)
+    used.add(i)
+  }
+  return text
+}
+
+function quoteParam(value) {
+  const text = value == null ? '' : String(value)
+  if (text === '<table>') return text
+  if (text.length >= 2 && text.startsWith('"') && text.endsWith('"')) return text
+  return `"${text}"`
+}
+
 function lastOpen(items, name) {
   for (let i = items.length - 1; i >= 0; i--) {
     if (items[i].name === name && items[i].status === 'progress') {
@@ -78,6 +115,7 @@ function mapStep(item, level) {
   const node = {
     id: `${concept ? 'cpt' : 'step'}-${item.id}`,
     name: item.name,
+    parameters: item.parameters,
     kind: concept ? '概念' : '步骤',
     type: concept ? 'concept' : 'step',
     level,
@@ -101,6 +139,9 @@ function mapStep(item, level) {
       status: 'fail',
       stackTrace: item.stackTrace
     })
+  }
+  if (node.children.some((child) => child.status === 'fail')) {
+    node.status = 'fail'
   }
   if (!node.children.length) {
     delete node.children
@@ -223,8 +264,12 @@ export const useReportStore = defineStore('report', () => {
     return lastOpen(spec.scenarios, name) || spec.scenarios.find((s) => s.name === name) || null
   }
 
-  function addEvent(event) {
-    if (!event || !event.type) return
+  function addEvent(raw) {
+    if (!raw || !raw.type) return
+    const event =
+      raw.type === 'step' || raw.type === 'concept'
+        ? { ...raw, name: resolveStepName(raw.name, raw.parameters), conceptName: resolveStepName(raw.conceptName || raw.name, raw.parameters) }
+        : raw
     events.value.push(event)
 
     switch (event.type) {
@@ -264,6 +309,7 @@ export const useReportStore = defineStore('report', () => {
             id: uid(),
             name: event.name,
             status: event.status,
+            parameters: event.parameters,
             steps: []
           })
         } else {
@@ -288,6 +334,7 @@ export const useReportStore = defineStore('report', () => {
             type: 'concept',
             name: event.name,
             status: event.status,
+            parameters: event.parameters,
             steps: []
           })
         } else {
@@ -300,9 +347,10 @@ export const useReportStore = defineStore('report', () => {
             scenario.steps.push({
               id: uid(),
               type: 'concept',
-              name: event.name,
-              status: event.status,
-              steps: []
+            name: event.name,
+            status: event.status,
+            parameters: event.parameters,
+            steps: []
             })
           }
         }
@@ -319,7 +367,8 @@ export const useReportStore = defineStore('report', () => {
             id: uid(),
             type: 'step',
             name: event.name,
-            status: event.status
+            status: event.status,
+            parameters: event.parameters
           })
         } else {
           const open = findOpen(scenario.steps, event.name, 'step')
@@ -333,6 +382,7 @@ export const useReportStore = defineStore('report', () => {
               type: 'step',
               name: event.name,
               status: event.status,
+              parameters: event.parameters,
               errorMessage: event.errorMessage,
               stackTrace: event.stackTrace
             })
