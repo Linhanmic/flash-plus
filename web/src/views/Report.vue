@@ -19,14 +19,7 @@
 
     <StatsBar :all-expanded="allExpanded" @toggle-all="toggleAll" />
 
-    <ul class="specs">
-      <SpecItem
-        v-for="spec in store.specList"
-        :key="spec.id"
-        :spec="spec"
-        :force-expanded="allExpanded"
-      />
-    </ul>
+    <ResultTable :all-expanded="allExpanded" />
 
     <div v-if="!store.specList.length && isConnected" class="empty">
       Waiting for specification events…
@@ -42,7 +35,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useEventStore } from '../stores/eventStore'
 import { useWebSocket } from '../composables/useWebSocket'
 import StatsBar from '../components/StatsBar.vue'
-import SpecItem from '../components/SpecItem.vue'
+import ResultTable from '../components/ResultTable.vue'
 
 const store = useEventStore()
 const allExpanded = ref(true)
@@ -116,11 +109,6 @@ onMounted(async () => {
   font-weight: 100;
 }
 
-.specs {
-  margin-top: 10px;
-  margin-left: 0;
-  padding-left: 0;
-}
 
 .empty,
 .connecting {

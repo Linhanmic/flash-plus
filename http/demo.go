@@ -23,8 +23,8 @@ func RunDemo(e chan event.Event) {
 	loginSpec := "specs/login.spec"
 	send(event.Event{Type: event.Spec, Status: event.Progress, Name: "User login", FileName: loginSpec, Tags: []string{"auth"}}, 250*time.Millisecond)
 	send(event.Event{Type: event.Scenario, Status: event.Progress, Name: "Successful login with valid credentials", SpecFileName: loginSpec}, 200*time.Millisecond)
-	send(event.Event{Type: event.Step, Status: event.Progress, Name: "Open the login page", ScenarioName: "Successful login with valid credentials", SpecFileName: loginSpec}, 180*time.Millisecond)
-	send(event.Event{Type: event.Step, Status: event.Pass, Name: "Open the login page", ScenarioName: "Successful login with valid credentials", SpecFileName: loginSpec}, 180*time.Millisecond)
+	send(event.Event{Type: event.Step, Status: event.Progress, Name: "Login as \"demo_user\"", ScenarioName: "Successful login with valid credentials", SpecFileName: loginSpec}, 180*time.Millisecond)
+	send(event.Event{Type: event.Step, Status: event.Pass, Name: "Login as \"demo_user\"", ScenarioName: "Successful login with valid credentials", SpecFileName: loginSpec}, 180*time.Millisecond)
 	send(event.Event{Type: event.Step, Status: event.Progress, Name: "Enter username \"alice\" and password \"secret\"", ScenarioName: "Successful login with valid credentials", SpecFileName: loginSpec}, 180*time.Millisecond)
 	send(event.Event{Type: event.Step, Status: event.Pass, Name: "Enter username \"alice\" and password \"secret\"", ScenarioName: "Successful login with valid credentials", SpecFileName: loginSpec}, 180*time.Millisecond)
 	send(event.Event{Type: event.Step, Status: event.Progress, Name: "Click \"Sign in\"", ScenarioName: "Successful login with valid credentials", SpecFileName: loginSpec}, 180*time.Millisecond)

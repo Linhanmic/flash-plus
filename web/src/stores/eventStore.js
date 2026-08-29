@@ -25,6 +25,43 @@ export const useEventStore = defineStore('event', () => {
 
   const specList = computed(() => Object.values(specs.value))
 
+  const treeData = computed(() =>
+    specList.value.map((spec) => ({
+      id: `spec-${spec.id}`,
+      name: spec.name,
+      type: 'spec',
+      status: spec.status || 'progress',
+      children: (spec.scenarios || []).map((scenario) => ({
+        id: `scn-${scenario.id}`,
+        name: scenario.name,
+        type: 'scenario',
+        status: scenario.status || 'progress',
+        children: (scenario.steps || []).map((step) => {
+          const node = {
+            id: `step-${step.id}`,
+            name: step.name,
+            type: 'step',
+            status: step.status || 'progress',
+            errorMessage: step.errorMessage,
+            stackTrace: step.stackTrace
+          }
+          if (step.errorMessage || step.stackTrace) {
+            node.children = [
+              {
+                id: `err-${step.id}`,
+                name: step.errorMessage || 'Step failed',
+                type: 'error',
+                status: 'fail',
+                stackTrace: step.stackTrace
+              }
+            ]
+          }
+          return node
+        })
+      }))
+    }))
+  )
+
   const stats = computed(() => {
     const result = {
       specPassed: 0,
@@ -153,6 +190,7 @@ export const useEventStore = defineStore('event', () => {
     events,
     specs,
     specList,
+    treeData,
     stats,
     isFinished,
     finalStatus,
