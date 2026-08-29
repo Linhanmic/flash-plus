@@ -1,0 +1,88 @@
+# Flash Plus
+
+[![Go](https://img.shields.io/badge/go-1.22-blue.svg)](https://go.dev/)
+[![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
+
+Gauge 执行进度实时报告插件，原版 [getgauge/Flash](https://github.com/getgauge/Flash) 的前后端分离实现。
+
+- 通过 gRPC 接收 Gauge 执行事件
+- HTTP + WebSocket 向前端推送进度
+- Vue 3 实时报告页（规格 / 场景 / 步骤、失败堆栈、Hide all）
+
+## 安装
+
+在 Gauge 项目目录：
+
+```bash
+go run build.go --distro
+gauge install flash --file deploy/flash-1.1.0-linux-x86_64.zip
+```
+
+或本地直接安装到 `~/.gauge/plugins`：
+
+```bash
+go run build.go --install
+```
+
+在项目 `manifest.json` 的 `Plugins` 中加入 `flash`：
+
+```json
+{
+  "Language": "js",
+  "Plugins": ["html-report", "flash"]
+}
+```
+
+执行规格后，控制台会打印报告地址，例如：
+
+```
+Listening on port:12345
+[Flash Plus] Starting progress reporting at http://127.0.0.1:56789
+```
+
+用浏览器打开该 HTTP 地址即可。HTTP 端口默认随机，可用环境变量固定：
+
+```bash
+FLASH_SERVER_PORT=8080
+```
+
+也可写在 `env/default/flash.properties` 中。
+
+## 本地预览（无需 Gauge）
+
+```bash
+npm --prefix web install
+go run build.go
+./bin/linux_amd64/flash-server --demo
+```
+
+或：
+
+```bash
+FLASH_PLUS_DEMO=1 ./bin/linux_amd64/flash-server
+```
+
+## 从源码构建
+
+依赖：Go 1.22+、Node.js 18+、npm。
+
+```bash
+go run build.go                 # 当前平台
+go run build.go --all-platforms # 交叉编译
+go run build.go --distro        # 生成 zip 分发包
+go run build.go --install       # 安装到 ~/.gauge/plugins
+```
+
+本仓库作为 [uHIL](https://github.com/Linhanmic/uHIL) 子模块维护。Protobuf 消息来自 `github.com/getgauge/flash`。
+
+## 配置
+
+| 变量 | 说明 |
+|------|------|
+| `FLASH_SERVER_PORT` | HTTP 报告服务端口，未设置则使用随机端口 |
+| `FLASH_PLUS_DEMO` | 设为 `1` 时播放内置演示时间线 |
+| `GAUGE_PROJECT_ROOT` | Gauge 注入，用于报告标题中的项目名 |
+
+## 许可
+
+Apache License 2.0，见 [LICENSE](LICENSE)。

@@ -5,8 +5,8 @@
     </li>
     <ul>
       <StepItem
-        v-for="(step, name) in scenario.steps"
-        :key="name"
+        v-for="step in scenario.steps"
+        :key="step.id"
         :step="step"
       />
     </ul>
@@ -41,7 +41,16 @@ defineProps({
   color: black;
 }
 
+.skip {
+  color: #888;
+}
+
 ul {
   margin-left: 20px;
+  padding-left: 0;
+}
+
+li {
+  list-style: none;
 }
 </style>

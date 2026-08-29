@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------
- *  Flash - 前后端分离版本
+ *  Flash Plus - Gauge execution progress reporter
  *  Licensed under the Apache License, Version 2.0
  *  See LICENSE in the project root for license information.
  *----------------------------------------------------------------*/
@@ -7,26 +7,60 @@
 package main
 
 import (
+	"context"
 	"embed"
+	"flag"
 	"io/fs"
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
 
-	"github.com/getgauge/flash-server/event"
-	flashGrpc "github.com/getgauge/flash-server/grpc"
-	flashHttp "github.com/getgauge/flash-server/http"
+	"github.com/Linhanmic/flash-plus/event"
+	flashGrpc "github.com/Linhanmic/flash-plus/grpc"
+	flashHttp "github.com/Linhanmic/flash-plus/http"
 )
 
-//go:embed dist/*
+//go:embed dist
 var distFS embed.FS
 
 func main() {
-	e := make(chan event.Event)
+	demo := flag.Bool("demo", false, "Run a local demo timeline without Gauge")
+	flag.Parse()
+	if os.Getenv("FLASH_PLUS_DEMO") == "1" {
+		*demo = true
+	}
 
-	// 启动 gRPC 服务（接收 Gauge 事件）
-	go flashGrpc.Start(e)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	// 获取 dist 子目录
-	staticFS, _ := fs.Sub(distFS, "dist")
+	go func() {
+		ch := make(chan os.Signal, 1)
+		signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
+		<-ch
+		cancel()
+	}()
 
-	// 启动 HTTP 服务（API + WebSocket + 前端静态文件）
-	flashHttp.Start(e, staticFS)
+	events := make(chan event.Event, 256)
+
+	staticFS, err := fs.Sub(distFS, "dist")
+	if err != nil {
+		log.Fatalf("failed to load embedded frontend: %v", err)
+	}
+
+	if *demo {
+		log.Println("[Flash Plus] demo mode: publishing sample execution events")
+		go flashHttp.RunDemo(events)
+	} else {
+		go func() {
+			if err := flashGrpc.Start(ctx, events, cancel); err != nil {
+				log.Printf("[Flash Plus] gRPC server stopped: %v", err)
+				cancel()
+			}
+		}()
+	}
+
+	if err := flashHttp.Start(ctx, events, staticFS); err != nil {
+		log.Fatal(err)
+	}
 }

@@ -1,40 +1,53 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 
-export function useWebSocket(url) {
-  const events = ref([])
+export function useWebSocket(url, { onEvent, onFinished, onOpen } = {}) {
   const isConnected = ref(false)
   const isFinished = ref(false)
   let socket = null
+  let reconnectTimer = null
+  let closed = false
 
   const connect = () => {
+    if (closed || isFinished.value) return
     socket = new WebSocket(url)
 
     socket.onopen = () => {
       isConnected.value = true
-      console.log('[Flash] WebSocket connected')
+      onOpen?.()
     }
 
     socket.onmessage = (e) => {
-      const data = JSON.parse(e.data)
-      events.value.push(data)
-
+      let data
+      try {
+        data = JSON.parse(e.data)
+      } catch {
+        return
+      }
+      onEvent?.(data)
       if (data.type === 'end') {
         isFinished.value = true
+        onFinished?.(data)
       }
     }
 
     socket.onclose = () => {
       isConnected.value = false
-      console.log('[Flash] WebSocket disconnected')
+      if (!closed && !isFinished.value) {
+        reconnectTimer = setTimeout(connect, 1000)
+      }
     }
 
-    socket.onerror = (err) => {
-      console.error('[Flash] WebSocket error:', err)
+    socket.onerror = () => {
+      socket?.close()
     }
   }
 
   onMounted(connect)
-  onUnmounted(() => socket?.close())
+  onUnmounted(() => {
+    closed = true
+    clearTimeout(reconnectTimer)
+    socket?.close()
+  })
 
-  return { events, isConnected, isFinished }
+  return { isConnected, isFinished }
 }

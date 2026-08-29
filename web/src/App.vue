@@ -19,4 +19,8 @@ body {
   font-size: 13px;
   line-height: 20px;
 }
+
+ul {
+  list-style: none;
+}
 </style>

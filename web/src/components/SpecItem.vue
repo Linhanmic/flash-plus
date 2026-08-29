@@ -6,8 +6,8 @@
     </li>
     <ul v-show="expanded" class="scenarios">
       <ScenarioItem
-        v-for="(scenario, name) in spec.scenarios"
-        :key="name"
+        v-for="scenario in spec.scenarios"
+        :key="scenario.id"
         :scenario="scenario"
       />
     </ul>
@@ -15,17 +15,28 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import ScenarioItem from './ScenarioItem.vue'
 
-defineProps({
+const props = defineProps({
   spec: {
     type: Object,
     required: true
+  },
+  forceExpanded: {
+    type: Boolean,
+    default: true
   }
 })
 
 const expanded = ref(true)
+
+watch(
+  () => props.forceExpanded,
+  (val) => {
+    expanded.value = val
+  }
+)
 </script>
 
 <style scoped>
@@ -68,7 +79,17 @@ const expanded = ref(true)
   color: black;
 }
 
+.skip {
+  color: #888;
+}
+
 .scenarios {
   margin-left: 20px;
+  padding-left: 0;
+}
+
+li {
+  list-style: none;
+  cursor: pointer;
 }
 </style>
