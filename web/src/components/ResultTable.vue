@@ -5,12 +5,12 @@
       style="width: 100%"
       row-key="id"
       :show-header="false"
-      :expand-row-keys="expandedKeys"
+      :expand-row-keys="store.expandedKeys"
       :tree-props="{ children: 'children' }"
       :indent="24"
       :row-class-name="rowClassName"
       empty-text="Waiting for specification events…"
-      @expand-change="onExpandChange"
+      @expand-change="store.onExpandChange"
     >
       <el-table-column class-name="name-cell" min-width="320">
         <template #default="{ row }">
@@ -25,58 +25,10 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
 import { ElTable, ElTableColumn } from 'element-plus'
-import { useEventStore } from '../stores/eventStore'
+import { useReportStore } from '../stores/report'
 
-const props = defineProps({
-  allExpanded: {
-    type: Boolean,
-    default: true
-  }
-})
-
-const store = useEventStore()
-const expandedKeys = ref([])
-
-function collectExpandableIds(nodes, acc = []) {
-  for (const node of nodes || []) {
-    if (node.children?.length) {
-      acc.push(String(node.id))
-      collectExpandableIds(node.children, acc)
-    }
-  }
-  return acc
-}
-
-function syncExpanded() {
-  if (props.allExpanded) {
-    expandedKeys.value = collectExpandableIds(store.treeData)
-  } else {
-    expandedKeys.value = []
-  }
-}
-
-watch(
-  () => [props.allExpanded, store.treeData],
-  () => syncExpanded(),
-  { immediate: true, deep: true }
-)
-
-function onExpandChange(row, expanded) {
-  const id = String(row.id)
-  const open = typeof expanded === 'boolean' ? expanded : expandedKeys.value.includes(id)
-  if (typeof expanded !== 'boolean') {
-    return
-  }
-  if (open) {
-    if (!expandedKeys.value.includes(id)) {
-      expandedKeys.value = [...expandedKeys.value, id]
-    }
-  } else {
-    expandedKeys.value = expandedKeys.value.filter((key) => key !== id)
-  }
-}
+const store = useReportStore()
 
 function rowClassName({ row }) {
   return [`is-${row.status || 'progress'}`, `is-${row.type}`]

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 let nextId = 1
 const uid = () => nextId++
@@ -13,7 +13,22 @@ function lastOpen(items, name) {
   return null
 }
 
-export const useEventStore = defineStore('event', () => {
+function collectExpandableIds(nodes, acc = []) {
+  for (const node of nodes || []) {
+    if (node.children?.length) {
+      acc.push(String(node.id))
+      collectExpandableIds(node.children, acc)
+    }
+  }
+  return acc
+}
+
+function formatTimestamp(date = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}
+
+export const useReportStore = defineStore('report', () => {
   const events = ref([])
   const specs = ref({})
   const isFinished = ref(false)
@@ -22,6 +37,15 @@ export const useEventStore = defineStore('event', () => {
   const executionTime = ref(0)
   const environment = ref('')
   const specsSkipped = ref(0)
+  const timestamp = ref('')
+
+  const isConnected = ref(false)
+  const allExpanded = ref(true)
+  const expandedKeys = ref([])
+
+  let socket = null
+  let reconnectTimer = null
+  let closed = false
 
   const specList = computed(() => Object.values(specs.value))
 
@@ -86,6 +110,45 @@ export const useEventStore = defineStore('event', () => {
     }
     return result
   })
+
+  const durationText = computed(() => {
+    const ms = executionTime.value
+    if (!ms) return ''
+    if (ms < 1000) return `${ms} ms`
+    return `${(ms / 1000).toFixed(2)} s`
+  })
+
+  const projectLabel = computed(() => (projectName.value ? ` · ${projectName.value}` : ''))
+  const failed = computed(() => finalStatus.value === 'fail')
+  const passed = computed(() => finalStatus.value === 'pass')
+
+  function syncExpandedKeys() {
+    expandedKeys.value = allExpanded.value ? collectExpandableIds(treeData.value) : []
+  }
+
+  watch(treeData, () => {
+    if (allExpanded.value) {
+      syncExpandedKeys()
+    }
+  })
+
+  function toggleAll() {
+    allExpanded.value = !allExpanded.value
+    syncExpandedKeys()
+  }
+
+  function onExpandChange(row, expanded) {
+    if (typeof expanded !== 'boolean' || !row) return
+    const id = String(row.id)
+    if (expanded) {
+      if (!expandedKeys.value.includes(id)) {
+        expandedKeys.value = [...expandedKeys.value, id]
+      }
+    } else {
+      expandedKeys.value = expandedKeys.value.filter((key) => key !== id)
+      allExpanded.value = false
+    }
+  }
 
   function addEvent(event) {
     if (!event || !event.type) return
@@ -170,10 +233,6 @@ export const useEventStore = defineStore('event', () => {
     }
   }
 
-  function addEvents(list) {
-    for (const ev of list) addEvent(ev)
-  }
-
   function reset() {
     events.value = []
     specs.value = {}
@@ -183,7 +242,74 @@ export const useEventStore = defineStore('event', () => {
     executionTime.value = 0
     environment.value = ''
     specsSkipped.value = 0
+    expandedKeys.value = []
     nextId = 1
+  }
+
+  async function fetchInfo() {
+    try {
+      const res = await fetch('/api/info')
+      if (res.ok) {
+        const info = await res.json()
+        timestamp.value = info.timestamp || timestamp.value
+        if (info.project && !projectName.value) {
+          projectName.value = info.project
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+    if (!timestamp.value) {
+      timestamp.value = formatTimestamp()
+    }
+  }
+
+  function wsUrl() {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    return `${protocol}//${window.location.host}/api/events/stream`
+  }
+
+  function connect() {
+    closed = false
+    if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+      return
+    }
+    if (isFinished.value) return
+    socket = new WebSocket(wsUrl())
+
+    socket.onopen = () => {
+      isConnected.value = true
+      reset()
+    }
+
+    socket.onmessage = (e) => {
+      let data
+      try {
+        data = JSON.parse(e.data)
+      } catch {
+        return
+      }
+      addEvent(data)
+    }
+
+    socket.onclose = () => {
+      isConnected.value = false
+      if (!closed && !isFinished.value) {
+        reconnectTimer = setTimeout(connect, 1000)
+      }
+    }
+
+    socket.onerror = () => {
+      socket?.close()
+    }
+  }
+
+  function disconnect() {
+    closed = true
+    clearTimeout(reconnectTimer)
+    socket?.close()
+    socket = null
+    isConnected.value = false
   }
 
   return {
@@ -198,8 +324,20 @@ export const useEventStore = defineStore('event', () => {
     executionTime,
     environment,
     specsSkipped,
+    timestamp,
+    isConnected,
+    allExpanded,
+    expandedKeys,
+    durationText,
+    projectLabel,
+    failed,
+    passed,
     addEvent,
-    addEvents,
-    reset
+    reset,
+    toggleAll,
+    onExpandChange,
+    fetchInfo,
+    connect,
+    disconnect
   }
 })

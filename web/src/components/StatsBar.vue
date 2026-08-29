@@ -1,46 +1,33 @@
 <template>
-  <div class="menu" :class="{ 'fail-bg': failed, 'pass-bg': passed && finished }">
+  <div class="menu" :class="{ 'fail-bg': store.failed, 'pass-bg': store.passed && store.isFinished }">
     <div class="toggle-all">
       <input
         id="collapse"
         type="button"
-        :value="allExpanded ? 'Hide all' : 'Show all'"
-        @click="$emit('toggleAll')"
+        :value="store.allExpanded ? 'Hide all' : 'Show all'"
+        @click="store.toggleAll()"
       />
     </div>
     <div class="stats-container">
       <span class="entity">Specifications: </span>
-      <span class="stat">{{ stats.specPassed }} passed, </span>
-      <span class="stat">{{ stats.specFailed }} failed, </span>
-      <span class="stat" v-if="stats.specSkipped">{{ stats.specSkipped }} skipped, </span>
-      <span class="stat">{{ stats.specProgress }} running</span>
+      <span class="stat">{{ store.stats.specPassed }} passed, </span>
+      <span class="stat">{{ store.stats.specFailed }} failed, </span>
+      <span class="stat" v-if="store.stats.specSkipped">{{ store.stats.specSkipped }} skipped, </span>
+      <span class="stat">{{ store.stats.specProgress }} running</span>
       <span> | </span>
       <span class="entity">Scenarios: </span>
-      <span class="stat">{{ stats.scenarioPassed }} passed, </span>
-      <span class="stat">{{ stats.scenarioFailed }} failed, </span>
-      <span class="stat">{{ stats.scenarioProgress }} running</span>
+      <span class="stat">{{ store.stats.scenarioPassed }} passed, </span>
+      <span class="stat">{{ store.stats.scenarioFailed }} failed, </span>
+      <span class="stat">{{ store.stats.scenarioProgress }} running</span>
       <span v-if="store.environment" class="env"> · {{ store.environment }}</span>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { useEventStore } from '../stores/eventStore'
+import { useReportStore } from '../stores/report'
 
-defineProps({
-  allExpanded: {
-    type: Boolean,
-    default: true
-  }
-})
-defineEmits(['toggleAll'])
-
-const store = useEventStore()
-const stats = computed(() => store.stats)
-const finished = computed(() => store.isFinished)
-const failed = computed(() => store.finalStatus === 'fail')
-const passed = computed(() => store.finalStatus === 'pass')
+const store = useReportStore()
 </script>
 
 <style scoped>
