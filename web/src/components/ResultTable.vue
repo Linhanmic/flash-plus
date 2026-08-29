@@ -26,8 +26,8 @@
           <div class="cell-content" :class="`type-${row.type}`">
             <div class="row-main">
               <span v-if="row.kind" class="kind">{{ row.kind }}</span>
-              <span class="row-name">{{ row.name }}</span>
-              <span v-if="row.fileLabel" class="file-name" :title="row.fileName">{{ row.fileLabel }}</span>
+              <span class="row-name" :title="row.fileName || row.name">{{ row.name }}</span>
+              <span v-if="row.heading" class="row-heading">{{ row.heading }}</span>
             </div>
             <pre v-if="row.type === 'error' && row.stackTrace" class="stack">{{ row.stackTrace }}</pre>
           </div>
@@ -129,7 +129,11 @@ function rowClassName({ row }) {
 }
 
 .flash-table :deep(.el-table__row.is-level-3 td.el-table__cell) {
-  padding-left: 72px;
+  padding-left: 108px;
+}
+
+.flash-table :deep(.el-table__row.is-level-4 td.el-table__cell) {
+  padding-left: 144px;
 }
 
 .flash-table :deep(.el-table__indent),
@@ -236,8 +240,12 @@ function rowClassName({ row }) {
   color: #5d6d7e;
 }
 
-.type-step .kind,
 .type-concept .kind {
+  background: #f5eef8;
+  color: #8e44ad;
+}
+
+.type-step .kind {
   background: #f4f4f4;
   color: #7f8c8d;
 }
@@ -252,24 +260,30 @@ function rowClassName({ row }) {
 .type-spec .row-name {
   font-weight: 600;
   font-size: 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 .type-scenario .row-name {
   font-weight: 500;
 }
 
+.type-concept .row-name {
+  font-weight: 500;
+}
+
+.row-heading {
+  color: #8a8a8a;
+  font-size: 12px;
+  font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .type-error .row-name {
   color: #c0392b;
   font-size: 13px;
   white-space: pre-wrap;
-}
-
-.file-name {
-  margin-left: auto;
-  flex-shrink: 0;
-  color: #9a9a9a;
-  font-size: 12px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 .stack {

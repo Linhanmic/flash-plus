@@ -7,7 +7,7 @@ Gauge 执行进度实时报告插件，原版 [getgauge/Flash](https://github.co
 
 - 通过 gRPC 接收 Gauge 执行事件
 - HTTP + WebSocket 向前端推送进度
-- Vue 3 实时报告页（规格 / 场景 / 步骤、失败堆栈、Hide all）
+- Vue 3 实时报告页（规格书文件名 / 场景 / 步骤与概念、失败堆栈、Hide all）
 
 ## 安装
 
@@ -72,6 +72,16 @@ go run build.go --all-platforms # 交叉编译
 go run build.go --distro        # 生成 zip 分发包
 go run build.go --install       # 安装到 ~/.gauge/plugins
 ```
+
+报告树按 Gauge 执行结构展开：
+
+| 层级 | 标签 | 显示名称 |
+|------|------|----------|
+| 规格书 | 规格书 | 规格文件名（如 `login.spec`），标题作为副标题 |
+| 场景 | 场景 | 场景标题 |
+| 步骤 / 概念 | 步骤、概念 | 步骤文本；概念可嵌套内部步骤 |
+
+WebSocket 事件类型为 `suite` / `spec` / `scenario` / `concept` / `step` / `end`。当前 `github.com/getgauge/flash` 的 Reporter proto 尚未包含 `NotifyConceptExecution*`，因此 Gauge 运行时若未发送概念 RPC，概念节点仍可通过 `type: "concept"` 事件（如 `--demo`）展示。
 
 本仓库作为 [uHIL](https://github.com/Linhanmic/uHIL) 子模块维护。Protobuf 消息来自 `github.com/getgauge/flash`。
 

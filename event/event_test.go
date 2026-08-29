@@ -62,6 +62,34 @@ func TestNewStepEventNilStepRequest(t *testing.T) {
 	}
 }
 
+func TestNewConceptEvent(t *testing.T) {
+	info := &m.ExecutionInfo{
+		CurrentSpec:     &m.SpecInfo{Name: "Login", FileName: "specs/login.spec"},
+		CurrentScenario: &m.ScenarioInfo{Name: "ok"},
+		CurrentStep: &m.StepInfo{
+			Step:         &m.ExecuteStepRequest{ActualStepText: "Login as \"user\""},
+			IsFailed:     true,
+			ErrorMessage: "inner step failed",
+			StackTrace:   "at concept:1",
+		},
+	}
+	started := NewConceptEvent(info, true)
+	if started.Type != Concept || started.Status != Progress || started.Name != "Login as \"user\"" || started.ErrorMessage != "" {
+		t.Fatalf("start: %+v", started)
+	}
+	if started.SpecFileName != "specs/login.spec" || started.ScenarioName != "ok" || started.ConceptName != "Login as \"user\"" {
+		t.Fatalf("start refs: %+v", started)
+	}
+	ended := NewConceptEvent(info, false)
+	if ended.Status != Fail || ended.ErrorMessage != "inner step failed" || ended.StackTrace != "at concept:1" {
+		t.Fatalf("end: %+v", ended)
+	}
+	unknown := NewConceptEvent(nil, true)
+	if unknown.Name != "(unknown concept)" || unknown.Status != Progress {
+		t.Fatalf("nil: %+v", unknown)
+	}
+}
+
 func TestNewEndEventFromSuite(t *testing.T) {
 	ev := NewEndEventFromSuite(nil)
 	if ev.Type != End || ev.Status != Pass {

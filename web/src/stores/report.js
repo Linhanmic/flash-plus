@@ -13,6 +13,46 @@ function lastOpen(items, name) {
   return null
 }
 
+function isConceptNode(item) {
+  return item?.type === 'concept' || item?.concept === true
+}
+
+function lastProgressConcept(items) {
+  if (!items?.length) return null
+  for (let i = items.length - 1; i >= 0; i--) {
+    const item = items[i]
+    if (isConceptNode(item) && item.status === 'progress') {
+      return lastProgressConcept(item.steps) || item
+    }
+  }
+  return null
+}
+
+function findOpen(items, name, type) {
+  if (!items?.length) return null
+  for (let i = items.length - 1; i >= 0; i--) {
+    const item = items[i]
+    if (isConceptNode(item)) {
+      const nested = findOpen(item.steps, name, type)
+      if (nested) return nested
+    }
+    const itemType = isConceptNode(item) ? 'concept' : item.type || 'step'
+    if (item.name === name && item.status === 'progress' && itemType === type) {
+      return item
+    }
+  }
+  return null
+}
+
+function targetList(scenario) {
+  const concept = lastProgressConcept(scenario.steps)
+  if (concept) {
+    if (!concept.steps) concept.steps = []
+    return concept.steps
+  }
+  return scenario.steps
+}
+
 function collectExpandableIds(nodes, acc = []) {
   for (const node of nodes || []) {
     if (node.children?.length) {
@@ -31,6 +71,41 @@ function formatTimestamp(date = new Date()) {
 function baseName(path) {
   if (!path) return ''
   return String(path).replace(/^.*[/\\]/, '')
+}
+
+function mapStep(item, level) {
+  const concept = isConceptNode(item)
+  const node = {
+    id: `${concept ? 'cpt' : 'step'}-${item.id}`,
+    name: item.name,
+    kind: concept ? '概念' : '步骤',
+    type: concept ? 'concept' : 'step',
+    level,
+    status: item.status || 'progress',
+    errorMessage: item.errorMessage,
+    stackTrace: item.stackTrace,
+    children: []
+  }
+  if (concept) {
+    for (const child of item.steps || []) {
+      node.children.push(mapStep(child, level + 1))
+    }
+  }
+  if (item.errorMessage || item.stackTrace) {
+    node.children.push({
+      id: `err-${item.id}`,
+      name: item.errorMessage || 'Step failed',
+      kind: '',
+      type: 'error',
+      level,
+      status: 'fail',
+      stackTrace: item.stackTrace
+    })
+  }
+  if (!node.children.length) {
+    delete node.children
+  }
+  return node
 }
 
 export const useReportStore = defineStore('report', () => {
@@ -55,51 +130,29 @@ export const useReportStore = defineStore('report', () => {
   const specList = computed(() => Object.values(specs.value))
 
   const treeData = computed(() =>
-    specList.value.map((spec) => ({
-      id: `spec-${spec.id}`,
-      name: spec.name,
-      fileName: spec.fileName,
-      fileLabel: baseName(spec.fileName),
-      kind: '规格',
-      type: 'spec',
-      level: 0,
-      status: spec.status || 'progress',
-      children: (spec.scenarios || []).map((scenario) => ({
-        id: `scn-${scenario.id}`,
-        name: scenario.name,
-        kind: '场景',
-        type: 'scenario',
-        level: 1,
-        status: scenario.status || 'progress',
-        children: (scenario.steps || []).map((step) => {
-          const isConcept = Boolean(step.concept)
-          const node = {
-            id: `step-${step.id}`,
-            name: step.name,
-            kind: isConcept ? '概念' : '步骤',
-            type: isConcept ? 'concept' : 'step',
-            level: 2,
-            status: step.status || 'progress',
-            errorMessage: step.errorMessage,
-            stackTrace: step.stackTrace
-          }
-          if (step.errorMessage || step.stackTrace) {
-            node.children = [
-              {
-                id: `err-${step.id}`,
-                name: step.errorMessage || 'Step failed',
-                kind: '',
-                type: 'error',
-                level: 3,
-                status: 'fail',
-                stackTrace: step.stackTrace
-              }
-            ]
-          }
-          return node
-        })
-      }))
-    }))
+    specList.value.map((spec) => {
+      const fileLabel = baseName(spec.fileName)
+      const heading = spec.heading || spec.name
+      return {
+        id: `spec-${spec.id}`,
+        name: fileLabel || heading || '(unknown spec)',
+        heading: fileLabel && heading && heading !== fileLabel ? heading : '',
+        fileName: spec.fileName,
+        kind: '规格书',
+        type: 'spec',
+        level: 0,
+        status: spec.status || 'progress',
+        children: (spec.scenarios || []).map((scenario) => ({
+          id: `scn-${scenario.id}`,
+          name: scenario.name,
+          kind: '场景',
+          type: 'scenario',
+          level: 1,
+          status: scenario.status || 'progress',
+          children: (scenario.steps || []).map((step) => mapStep(step, 2))
+        }))
+      }
+    })
   )
 
   const stats = computed(() => {
@@ -166,6 +219,10 @@ export const useReportStore = defineStore('report', () => {
     }
   }
 
+  function resolveScenario(spec, name) {
+    return lastOpen(spec.scenarios, name) || spec.scenarios.find((s) => s.name === name) || null
+  }
+
   function addEvent(event) {
     if (!event || !event.type) return
     events.value.push(event)
@@ -178,19 +235,23 @@ export const useReportStore = defineStore('report', () => {
 
       case 'spec': {
         const key = event.fileName || event.name || `spec-${nextId}`
-        if (event.status === 'progress' || !specs.value[key]) {
-          if (!specs.value[key]) {
-            specs.value[key] = {
-              id: uid(),
-              ...event,
-              scenarios: []
-            }
-          } else {
-            specs.value[key].status = event.status
-            if (event.name) specs.value[key].name = event.name
+        if (!specs.value[key]) {
+          specs.value[key] = {
+            id: uid(),
+            name: event.name,
+            heading: event.name,
+            fileName: event.fileName,
+            status: event.status,
+            tags: event.tags,
+            scenarios: []
           }
         } else {
           specs.value[key].status = event.status
+          if (event.name) {
+            specs.value[key].name = event.name
+            specs.value[key].heading = event.name
+          }
+          if (event.fileName) specs.value[key].fileName = event.fileName
         }
         break
       }
@@ -201,7 +262,8 @@ export const useReportStore = defineStore('report', () => {
         if (event.status === 'progress') {
           spec.scenarios.push({
             id: uid(),
-            ...event,
+            name: event.name,
+            status: event.status,
             steps: []
           })
         } else {
@@ -209,7 +271,39 @@ export const useReportStore = defineStore('report', () => {
           if (open) {
             open.status = event.status
           } else {
-            spec.scenarios.push({ id: uid(), ...event, steps: [] })
+            spec.scenarios.push({ id: uid(), name: event.name, status: event.status, steps: [] })
+          }
+        }
+        break
+      }
+
+      case 'concept': {
+        const spec = specs.value[event.specFileName]
+        if (!spec) break
+        const scenario = resolveScenario(spec, event.scenarioName)
+        if (!scenario) break
+        if (event.status === 'progress') {
+          targetList(scenario).push({
+            id: uid(),
+            type: 'concept',
+            name: event.name,
+            status: event.status,
+            steps: []
+          })
+        } else {
+          const open = findOpen(scenario.steps, event.name, 'concept')
+          if (open) {
+            open.status = event.status
+            open.errorMessage = event.errorMessage
+            open.stackTrace = event.stackTrace
+          } else {
+            scenario.steps.push({
+              id: uid(),
+              type: 'concept',
+              name: event.name,
+              status: event.status,
+              steps: []
+            })
           }
         }
         break
@@ -218,21 +312,30 @@ export const useReportStore = defineStore('report', () => {
       case 'step': {
         const spec = specs.value[event.specFileName]
         if (!spec) break
-        let scenario = lastOpen(spec.scenarios, event.scenarioName)
-        if (!scenario) {
-          scenario = spec.scenarios.find((s) => s.name === event.scenarioName)
-        }
+        const scenario = resolveScenario(spec, event.scenarioName)
         if (!scenario) break
         if (event.status === 'progress') {
-          scenario.steps.push({ id: uid(), ...event })
+          targetList(scenario).push({
+            id: uid(),
+            type: 'step',
+            name: event.name,
+            status: event.status
+          })
         } else {
-          const open = lastOpen(scenario.steps, event.name)
+          const open = findOpen(scenario.steps, event.name, 'step')
           if (open) {
             open.status = event.status
             open.errorMessage = event.errorMessage
             open.stackTrace = event.stackTrace
           } else {
-            scenario.steps.push({ id: uid(), ...event })
+            targetList(scenario).push({
+              id: uid(),
+              type: 'step',
+              name: event.name,
+              status: event.status,
+              errorMessage: event.errorMessage,
+              stackTrace: event.stackTrace
+            })
           }
         }
         break

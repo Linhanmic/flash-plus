@@ -24,6 +24,7 @@ const (
 	Suite    EventType = "suite"
 	Spec     EventType = "spec"
 	Scenario EventType = "scenario"
+	Concept  EventType = "concept"
 	Step     EventType = "step"
 	End      EventType = "end"
 )
@@ -36,6 +37,7 @@ type Event struct {
 	FileName         string    `json:"fileName,omitempty"`
 	SpecFileName     string    `json:"specFileName,omitempty"`
 	ScenarioName     string    `json:"scenarioName,omitempty"`
+	ConceptName      string    `json:"conceptName,omitempty"`
 	ErrorMessage     string    `json:"errorMessage,omitempty"`
 	StackTrace       string    `json:"stackTrace,omitempty"`
 	ProjectName      string    `json:"projectName,omitempty"`
@@ -153,6 +155,40 @@ func NewStepEvent(i *m.ExecutionInfo, hasStarted bool) Event {
 	if !hasStarted && step.GetIsFailed() {
 		ev.ErrorMessage = step.GetErrorMessage()
 		ev.StackTrace = step.GetStackTrace()
+	}
+	return ev
+}
+
+func NewConceptEvent(i *m.ExecutionInfo, hasStarted bool) Event {
+	name := "(unknown concept)"
+	failed := false
+	specFile := ""
+	scenarioName := ""
+	if i != nil {
+		if spec := i.GetCurrentSpec(); spec != nil {
+			specFile = spec.GetFileName()
+		}
+		if scn := i.GetCurrentScenario(); scn != nil {
+			scenarioName = scn.GetName()
+		}
+		if step := i.GetCurrentStep(); step != nil {
+			failed = step.GetIsFailed()
+			if req := step.GetStep(); req != nil && req.GetActualStepText() != "" {
+				name = req.GetActualStepText()
+			}
+		}
+	}
+	ev := Event{
+		Type:         Concept,
+		Status:       statusOf(hasStarted, failed),
+		Name:         name,
+		ConceptName:  name,
+		SpecFileName: specFile,
+		ScenarioName: scenarioName,
+	}
+	if !hasStarted && failed && i != nil && i.GetCurrentStep() != nil {
+		ev.ErrorMessage = i.GetCurrentStep().GetErrorMessage()
+		ev.StackTrace = i.GetCurrentStep().GetStackTrace()
 	}
 	return ev
 }
