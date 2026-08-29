@@ -1,0 +1,32 @@
+{
+    "id": "flash",
+    "version": "1.0.0",
+    "name": "Flash",
+    "description": "Gauge spec execution progress reporter with Vue frontend",
+    "install": {
+        "windows": [],
+        "linux": [],
+        "darwin": []
+    },
+    "command": {
+        "windows": [
+            "bin/flash-server.exe"
+        ],
+        "linux": [
+            "bin/flash-server"
+        ],
+        "darwin": [
+            "bin/flash-server"
+        ]
+    },
+    "scope": [
+        "Execution"
+    ],
+    "gaugeVersionSupport": {
+        "minimum": "1.0.7",
+        "maximum": ""
+    },
+    "capabilities": [
+        "grpc_support"
+    ]
+}

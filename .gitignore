@@ -1,0 +1,14 @@
+# Build artifacts
+bin/
+deploy/
+dist/
+
+# Go
+*.exe
+
+# Node
+web/node_modules/
+
+# IDE
+.idea/
+.vscode/
