@@ -8,6 +8,7 @@ Gauge 执行进度实时报告插件，原版 [getgauge/Flash](https://github.co
 - 通过 gRPC 接收 Gauge 执行事件
 - HTTP + WebSocket 向前端推送进度
 - Vue 3 实时报告页（规格书文件名 / 场景 / 步骤与概念、失败堆栈、Hide all）
+- 运行结束、暂停（SIGINT）或停止（Kill / SIGTERM）时，把可离线打开的报告保存到 env 配置的目录
 
 ## 安装
 
@@ -47,6 +48,22 @@ FLASH_SERVER_PORT=8080
 ```
 
 也可写在 `env/default/flash.properties` 中。
+
+保存的静态报告目录由 Gauge env 决定，例如 `env/default/default.properties`：
+
+```
+gauge_reports_dir = reports
+overwrite_reports = true
+```
+
+运行结束、Ctrl+C 暂停，或 Gauge Kill / SIGTERM 停止时，会写入：
+
+```
+reports/flash-plus/index.html
+reports/flash-plus/snapshot.json
+```
+
+`overwrite_reports = false` 时则为 `reports/flash-plus/2006-01-02_15.04.05/`。直接用浏览器打开 `index.html` 即可查看当时的树状结果，无需再连实时服务。
 
 ## 本地预览（无需 Gauge）
 
@@ -91,7 +108,10 @@ WebSocket 事件类型为 `suite` / `spec` / `scenario` / `concept` / `step` / `
 |------|------|
 | `FLASH_SERVER_PORT` | HTTP 报告服务端口，未设置则使用随机端口 |
 | `FLASH_PLUS_DEMO` | 设为 `1` 时播放内置演示时间线 |
-| `GAUGE_PROJECT_ROOT` | Gauge 注入，用于报告标题中的项目名 |
+| `GAUGE_PROJECT_ROOT` | Gauge 注入，用于报告标题中的项目名，以及解析相对报告目录 |
+| `gauge_reports_dir` | 报告根目录，默认 `reports`（相对路径基于项目根）。写在 `env/default/default.properties` |
+| `overwrite_reports` | `true` 时覆盖 `reports/flash-plus/`；`false` 时写入带时间戳的子目录 |
+| `FLASH_REPORTS_DIR` | 可选，覆盖 `gauge_reports_dir` |
 
 ## 许可
 

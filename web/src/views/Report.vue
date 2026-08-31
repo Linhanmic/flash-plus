@@ -2,10 +2,10 @@
   <div class="report">
     <div class="status-container">
       <span id="status">
-        <template v-if="store.isFinished">
-          Execution Status: Finished.
+        <template v-if="store.isFinished || store.snapshotReason">
+          Execution Status: {{ store.statusLabel || 'Finished.' }}
           <span class="warning" v-if="store.failed">Some tests failed.</span>
-          <span class="warning" v-else>All tests passed.</span>
+          <span class="warning" v-else-if="store.snapshotReason === 'end' || !store.snapshotReason">All tests passed.</span>
           <span class="meta" v-if="store.durationText"> · {{ store.durationText }}</span>
         </template>
         <template v-else>
@@ -38,6 +38,9 @@ import ResultTable from '../components/ResultTable.vue'
 const store = useReportStore()
 
 onMounted(() => {
+  if (store.loadEmbeddedSnapshot()) {
+    return
+  }
   store.fetchInfo()
   store.connect()
 })

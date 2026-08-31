@@ -16,7 +16,7 @@ import (
 
 // Start listens on a random local port and prints the Gauge handshake line.
 // Gauge extracts the port from stdout using the exact prefix "Listening on port:".
-func Start(ctx context.Context, e chan event.Event, cancel context.CancelFunc) error {
+func Start(ctx context.Context, e chan event.Event, onKill context.CancelFunc) error {
 	address, err := net.ResolveTCPAddr("tcp", "127.0.0.1:0")
 	if err != nil {
 		return fmt.Errorf("failed to resolve TCP address: %w", err)
@@ -27,7 +27,7 @@ func Start(ctx context.Context, e chan event.Event, cancel context.CancelFunc) e
 	}
 	server := grpc.NewServer(grpc.MaxRecvMsgSize(1024 * 1024 * 1024))
 	h := NewHandler(server, e)
-	h.SetCancel(cancel)
+	h.SetOnKill(onKill)
 	registerReporter(server, h)
 
 	go func() {

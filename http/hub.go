@@ -40,6 +40,7 @@ type ServerInfo struct {
 	Timestamp string `json:"timestamp"`
 	Finished  bool   `json:"finished"`
 	Status    string `json:"status,omitempty"`
+	Reason    string `json:"reason,omitempty"`
 }
 
 func NewWebSocketHub(info ServerInfo) *WebSocketHub {
@@ -170,6 +171,7 @@ func (h *WebSocketHub) Broadcast(e event.Event) {
 	if e.Type == event.End {
 		h.info.Finished = true
 		h.info.Status = string(e.Status)
+		h.info.Reason = ReasonEnd
 		for c := range h.connections {
 			select {
 			case c.send <- e:
@@ -194,6 +196,15 @@ func (h *WebSocketHub) Broadcast(e event.Event) {
 		delete(h.connections, c)
 		c.closeSend()
 	}
+}
+
+func (h *WebSocketHub) Snapshot() (ServerInfo, []event.Event) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	info := h.info
+	out := make([]event.Event, len(h.events))
+	copy(out, h.events)
+	return info, out
 }
 
 func (h *WebSocketHub) GetEvents(w http.ResponseWriter, r *http.Request) {

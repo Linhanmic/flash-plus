@@ -160,6 +160,8 @@ export const useReportStore = defineStore('report', () => {
   const specsSkipped = ref(0)
   const timestamp = ref('')
 
+  const snapshotReason = ref('')
+
   const isConnected = ref(false)
   const allExpanded = ref(true)
   const expandedKeys = ref([])
@@ -231,6 +233,12 @@ export const useReportStore = defineStore('report', () => {
   const projectLabel = computed(() => (projectName.value ? ` · ${projectName.value}` : ''))
   const failed = computed(() => finalStatus.value === 'fail')
   const passed = computed(() => finalStatus.value === 'pass')
+  const statusLabel = computed(() => {
+    if (snapshotReason.value === 'pause') return 'Paused.'
+    if (snapshotReason.value === 'stop') return 'Stopped.'
+    if (isFinished.value) return 'Finished.'
+    return ''
+  })
 
   function syncExpandedKeys() {
     expandedKeys.value = allExpanded.value ? collectExpandableIds(treeData.value) : []
@@ -398,6 +406,7 @@ export const useReportStore = defineStore('report', () => {
         if (event.executionTime) executionTime.value = event.executionTime
         if (event.environment) environment.value = event.environment
         if (event.specsSkipped) specsSkipped.value = event.specsSkipped
+        if (!snapshotReason.value) snapshotReason.value = 'end'
         break
     }
   }
@@ -412,7 +421,32 @@ export const useReportStore = defineStore('report', () => {
     environment.value = ''
     specsSkipped.value = 0
     expandedKeys.value = []
+    snapshotReason.value = ''
     nextId = 1
+  }
+
+  function loadSnapshot(snap) {
+    if (!snap) return false
+    reset()
+    const info = snap.info || {}
+    snapshotReason.value = snap.reason || info.reason || 'end'
+    timestamp.value = info.timestamp || timestamp.value
+    if (info.project) projectName.value = info.project
+    if (info.status) finalStatus.value = info.status
+    for (const item of snap.events || []) {
+      addEvent(item)
+    }
+    isFinished.value = true
+    isConnected.value = true
+    if (!timestamp.value) {
+      timestamp.value = formatTimestamp()
+    }
+    return true
+  }
+
+  function loadEmbeddedSnapshot() {
+    const snap = typeof window !== 'undefined' ? window.__FLASH_SNAPSHOT__ : null
+    return loadSnapshot(snap)
   }
 
   async function fetchInfo() {
@@ -439,6 +473,7 @@ export const useReportStore = defineStore('report', () => {
   }
 
   function connect() {
+    if (snapshotReason.value) return
     closed = false
     if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
       return
@@ -495,6 +530,8 @@ export const useReportStore = defineStore('report', () => {
     specsSkipped,
     timestamp,
     isConnected,
+    snapshotReason,
+    statusLabel,
     allExpanded,
     expandedKeys,
     durationText,
@@ -507,6 +544,8 @@ export const useReportStore = defineStore('report', () => {
     onExpandChange,
     fetchInfo,
     connect,
-    disconnect
+    disconnect,
+    loadSnapshot,
+    loadEmbeddedSnapshot
   }
 })

@@ -34,10 +34,16 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	session := &flashHttp.Session{}
 	go func() {
 		ch := make(chan os.Signal, 1)
 		signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
-		<-ch
+		sig := <-ch
+		if sig == syscall.SIGINT {
+			session.SetReason(flashHttp.ReasonPause)
+		} else {
+			session.SetReason(flashHttp.ReasonStop)
+		}
 		cancel()
 	}()
 
@@ -53,14 +59,18 @@ func main() {
 		go flashHttp.RunDemo(events)
 	} else {
 		go func() {
-			if err := flashGrpc.Start(ctx, events, cancel); err != nil {
+			if err := flashGrpc.Start(ctx, events, func() {
+				session.SetReason(flashHttp.ReasonStop)
+				cancel()
+			}); err != nil {
 				log.Printf("[Flash Plus] gRPC server stopped: %v", err)
+				session.SetReason(flashHttp.ReasonStop)
 				cancel()
 			}
 		}()
 	}
 
-	if err := flashHttp.Start(ctx, events, staticFS); err != nil {
+	if err := flashHttp.Start(ctx, events, staticFS, session); err != nil {
 		log.Fatal(err)
 	}
 }

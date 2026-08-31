@@ -21,22 +21,59 @@ import (
 
 const flashServerPort = "FLASH_SERVER_PORT"
 
-func Start(ctx context.Context, e chan event.Event, staticFS fs.FS) error {
+func Start(ctx context.Context, e chan event.Event, staticFS fs.FS, session *Session) error {
+	if session == nil {
+		session = &Session{}
+	}
 	hub := NewWebSocketHub(ServerInfo{
 		Project:   event.ProjectNameFromEnv(),
 		Timestamp: time.Now().Format("2006-01-02 15:04:05"),
 	})
+	saver := NewSaver(staticFS)
+	saved := make(chan struct{})
 
 	go func() {
+		defer close(saved)
+		handle := func(ev event.Event) {
+			hub.Broadcast(ev)
+			if ev.Type == event.End {
+				session.SetReason(ReasonEnd)
+				if _, err := saver.Save(hub, ReasonEnd); err != nil {
+					log.Printf("[Flash Plus] failed to save report: %v\n", err)
+				}
+			}
+		}
+		saveIfNeeded := func() {
+			if saver.Saved() {
+				return
+			}
+			if _, err := saver.Save(hub, session.Reason()); err != nil {
+				log.Printf("[Flash Plus] failed to save report: %v\n", err)
+			}
+		}
 		for {
 			select {
 			case <-ctx.Done():
-				return
+				deadline := time.After(400 * time.Millisecond)
+				for {
+					select {
+					case ev, ok := <-e:
+						if !ok {
+							saveIfNeeded()
+							return
+						}
+						handle(ev)
+					case <-deadline:
+						saveIfNeeded()
+						return
+					}
+				}
 			case ev, ok := <-e:
 				if !ok {
+					saveIfNeeded()
 					return
 				}
-				hub.Broadcast(ev)
+				handle(ev)
 			}
 		}
 	}()
@@ -53,6 +90,10 @@ func Start(ctx context.Context, e chan event.Event, staticFS fs.FS) error {
 
 	go func() {
 		<-ctx.Done()
+		select {
+		case <-saved:
+		case <-time.After(2 * time.Second):
+		}
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		_ = srv.Shutdown(shutdownCtx)

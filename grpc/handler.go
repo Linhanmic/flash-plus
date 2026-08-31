@@ -27,6 +27,12 @@ func (h *handler) SetCancel(cancel context.CancelFunc) {
 	h.cancel = cancel
 }
 
+func (h *handler) SetOnKill(fn context.CancelFunc) {
+	if fn != nil {
+		h.cancel = fn
+	}
+}
+
 func (h *handler) emit(ev event.Event) {
 	h.e <- ev
 }
