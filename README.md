@@ -16,7 +16,7 @@ Gauge 执行进度实时报告插件，原版 [getgauge/Flash](https://github.co
 
 ```bash
 go run build.go --distro
-gauge install flash --file deploy/flash-1.1.0-linux-x86_64.zip
+gauge install flash --file deploy/flash-1.1.1-linux.x86_64.zip
 ```
 
 或本地直接安装到 `~/.gauge/plugins`：
