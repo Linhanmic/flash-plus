@@ -40,9 +40,11 @@ var deployDir = filepath.Join(deploy, "flash")
 func main() {
 	flag.Parse()
 	if *install {
+		compile()
 		updatePluginInstallPrefix()
 		installPlugin(*pluginInstallPrefix)
 	} else if *distro {
+		compile()
 		createPluginDistro(*allPlatforms)
 	} else {
 		compile()
@@ -119,7 +121,7 @@ func createPluginDistro(forAllPlatforms bool) {
 }
 
 func createDistro() {
-	packageName := fmt.Sprintf("flash-%s-%s-%s", getPluginVersion(), getGOOS(), getArch())
+	packageName := fmt.Sprintf("flash-%s-%s.%s", getPluginVersion(), getGOOS(), getArch())
 	distroDir := filepath.Join(deploy, packageName)
 	copyPluginFiles(distroDir)
 	createZip(deploy, packageName)

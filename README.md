@@ -11,14 +11,31 @@ Gauge 执行进度实时报告插件，原版 [getgauge/Flash](https://github.co
 
 ## 安装
 
-在 Gauge 项目目录：
+从 [GitHub Releases](https://github.com/Linhanmic/flash-plus/releases) 下载对应平台的 zip，在 Gauge 项目目录安装：
+
+```bash
+# Linux x86_64 示例，请按系统和架构替换文件名
+gauge install flash --file flash-1.1.0-linux.x86_64.zip
+```
+
+各平台包命名为 `flash-1.1.0-<os>.<arch>.zip`，例如：
+
+| 平台 | 文件 |
+|------|------|
+| Linux x86_64 | `flash-1.1.0-linux.x86_64.zip` |
+| Linux arm64 | `flash-1.1.0-linux.arm64.zip` |
+| macOS x86_64 | `flash-1.1.0-darwin.x86_64.zip` |
+| macOS arm64 | `flash-1.1.0-darwin.arm64.zip` |
+| Windows x86_64 | `flash-1.1.0-windows.x86_64.zip` |
+
+或从源码生成当前平台分发包后安装：
 
 ```bash
 go run build.go --distro
-gauge install flash --file deploy/flash-1.1.0-linux-x86_64.zip
+gauge install flash --file deploy/flash-1.1.0-linux.x86_64.zip
 ```
 
-或本地直接安装到 `~/.gauge/plugins`：
+也可直接安装到 `~/.gauge/plugins`：
 
 ```bash
 go run build.go --install
