@@ -1,6 +1,6 @@
 {
   "name": "flash-web",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "scripts": {
     "dev": "vite",
@@ -8,8 +8,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "vue": "^3.3.0",
-    "pinia": "^2.1.0"
+    "element-plus": "^2.8.8",
+    "pinia": "^2.1.0",
+    "vue": "^3.3.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^4.4.0",

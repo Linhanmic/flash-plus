@@ -32,6 +32,7 @@ const (
 	deploy            = "deploy"
 	pluginJSONFile    = "plugin.json"
 	webDir            = "web"
+	cgoEnabled        = "CGO_ENABLED"
 )
 
 var deployDir = filepath.Join(deploy, "flash")
@@ -39,9 +40,11 @@ var deployDir = filepath.Join(deploy, "flash")
 func main() {
 	flag.Parse()
 	if *install {
+		compile()
 		updatePluginInstallPrefix()
 		installPlugin(*pluginInstallPrefix)
 	} else if *distro {
+		compile()
 		createPluginDistro(*allPlatforms)
 	} else {
 		compile()
@@ -58,8 +61,27 @@ func compile() {
 	}
 }
 
+func npmInstall() {
+	if _, err := os.Stat(filepath.Join(webDir, "node_modules")); err == nil {
+		return
+	}
+	log.Println("Installing npm dependencies...")
+	install := "install"
+	if _, err := os.Stat(filepath.Join(webDir, "package-lock.json")); err == nil {
+		install = "ci"
+	}
+	cmd := exec.Command("npm", install)
+	cmd.Dir = webDir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		panic(fmt.Sprintf("Failed to install frontend dependencies: %s", err))
+	}
+}
+
 // buildFrontend 构建 Vue 前端
 func buildFrontend() {
+	npmInstall()
 	log.Println("Building Vue frontend...")
 	cmd := exec.Command("npm", "run", "build")
 	cmd.Dir = webDir
@@ -99,7 +121,7 @@ func createPluginDistro(forAllPlatforms bool) {
 }
 
 func createDistro() {
-	packageName := fmt.Sprintf("flash-%s-%s-%s", getPluginVersion(), getGOOS(), getArch())
+	packageName := fmt.Sprintf("flash-%s-%s.%s", getPluginVersion(), getGOOS(), getArch())
 	distroDir := filepath.Join(deploy, packageName)
 	copyPluginFiles(distroDir)
 	createZip(deploy, packageName)
@@ -229,7 +251,8 @@ func executeCommand(command string, arg ...string) (string, error) {
 }
 
 func compileGoPackage() {
-	runProcess("go", "build", "-o", getExecutablePath(flash))
+	os.Setenv(cgoEnabled, "0")
+	runProcess("go", "build", "-trimpath", "-ldflags", "-s -w", "-o", getExecutablePath(flash))
 }
 
 func getExecutablePath(file string) string {
@@ -302,12 +325,14 @@ var allPlatforms = flag.Bool("all-platforms", false, "Compiles or creates distri
 var binDir = flag.String("bin-dir", "", "Specifies OS_PLATFORM specific binaries to install when cross compiling")
 
 var platformEnvs = []map[string]string{
-	{GOARCH: x86, goOS: DARWIN},
 	{GOARCH: x86_64, goOS: DARWIN},
+	{GOARCH: "arm64", goOS: DARWIN},
 	{GOARCH: x86, goOS: LINUX},
 	{GOARCH: x86_64, goOS: LINUX},
+	{GOARCH: "arm64", goOS: LINUX},
 	{GOARCH: x86, goOS: WINDOWS},
 	{GOARCH: x86_64, goOS: WINDOWS},
+	{GOARCH: "arm64", goOS: WINDOWS},
 }
 
 func getPluginProperties(jsonPropertiesFile string) (map[string]interface{}, error) {
@@ -355,10 +380,14 @@ func updatePluginInstallPrefix() {
 }
 
 func getArch() string {
-	if getGOARCH() == x86 {
+	switch getGOARCH() {
+	case x86:
 		return "x86"
+	case "arm64":
+		return "arm64"
+	default:
+		return "x86_64"
 	}
-	return "x86_64"
 }
 
 func getGOARCH() string {

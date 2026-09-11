@@ -1,13 +1,13 @@
 # Build artifacts
 bin/
 deploy/
-dist/
+
+# Frontend
+web/dist/
+web/node_modules/
 
 # Go
 *.exe
-
-# Node
-web/node_modules/
 
 # IDE
 .idea/

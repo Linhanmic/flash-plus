@@ -1,8 +1,8 @@
 {
     "id": "flash",
-    "version": "1.0.0",
-    "name": "Flash",
-    "description": "Gauge spec execution progress reporter with Vue frontend",
+    "version": "1.1.0",
+    "name": "Flash Plus",
+    "description": "Gauge spec execution progress reporter with a Vue frontend",
     "install": {
         "windows": [],
         "linux": [],

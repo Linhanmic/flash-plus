@@ -14,9 +14,14 @@ import Report from './views/Report.vue'
 }
 
 body {
-  font-family: 'Source Code Pro', monospace;
+  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
   background: #eeeeee;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 20px;
+  color: #4a4a4a;
+}
+
+ul {
+  list-style: none;
 }
 </style>
